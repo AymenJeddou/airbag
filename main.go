@@ -68,6 +68,9 @@ func hook(agent string, in io.Reader, out io.Writer) error {
 	}
 	var h hookInput
 	if err := json.NewDecoder(in).Decode(&h); err != nil {
+		if agent == "cursor" { // fail open: Cursor blocks on missing output
+			fmt.Fprintln(out, `{"permission":"allow"}`)
+		}
 		return err
 	}
 	if agent == "cursor" {

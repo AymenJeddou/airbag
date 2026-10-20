@@ -120,3 +120,13 @@ func TestPrune(t *testing.T) {
 		t.Fatalf("expired snapshot kept")
 	}
 }
+
+func TestCursorFailsOpen(t *testing.T) {
+	var out bytes.Buffer
+	if err := hook("cursor", bytes.NewReader([]byte("not json")), &out); err == nil {
+		t.Error("want the decode error reported")
+	}
+	if !bytes.Contains(out.Bytes(), []byte(`"allow"`)) {
+		t.Errorf("cursor must still get allow, got %q", out.String())
+	}
+}
