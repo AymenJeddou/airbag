@@ -10,7 +10,9 @@ Set TypingSpeed 40ms
 Set Shell "bash"
 
 Hide
+Sleep 2s
 Type "cd $(mktemp -d) && mkdir src && echo 'API_KEY=sk-live-do-not-lose' > .env && echo 'package main' > src/main.go && clear" Enter
+Sleep 1s
 Show
 
 Type "ls -A" Enter
