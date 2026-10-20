@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -236,4 +237,57 @@ func restore(s Snap) (backup Snap, err error) {
 		}
 	}
 	return backup, nil
+}
+
+// changes lists what differs between snapshot s and the disk now, as "deleted|modified|added PATH".
+func changes(s Snap) ([]string, error) {
+	var out []string
+	for _, it := range s.Items {
+		saved := filepath.Join(snapDir(s.ID), it.Saved)
+		was, err := files(saved)
+		if err != nil {
+			return nil, err
+		}
+		now, err := files(it.Path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+		for rel := range was {
+			p := filepath.Join(it.Path, rel)
+			if _, ok := now[rel]; !ok {
+				out = append(out, "deleted  "+p)
+			} else if !sameFile(filepath.Join(saved, rel), p) {
+				out = append(out, "modified "+p)
+			}
+		}
+		for rel := range now {
+			if _, ok := was[rel]; !ok {
+				out = append(out, "added    "+filepath.Join(it.Path, rel))
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b string) int { return strings.Compare(a[9:], b[9:]) })
+	return out, nil
+}
+
+// files maps the relative path of every non-directory under root ("." when root is a file).
+func files(root string) (map[string]bool, error) {
+	m := map[string]bool{}
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			rel, _ := filepath.Rel(root, p)
+			m[rel] = true
+		}
+		return nil
+	})
+	return m, err
+}
+
+func sameFile(a, b string) bool {
+	x, err1 := os.ReadFile(a)
+	y, err2 := os.ReadFile(b)
+	return err1 == nil && err2 == nil && bytes.Equal(x, y)
 }

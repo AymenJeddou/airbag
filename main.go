@@ -17,6 +17,7 @@ const usage = `airbag: undo for AI coding agents
   airbag hook AGENT       pre-command hook for claude, codex or cursor (reads hook JSON on stdin)
   airbag snap PATH...     snapshot paths by hand
   airbag list             recent snapshots
+  airbag diff [N|ID]      what changed since snapshot N or ID
   airbag undo [N|ID]      restore snapshot N (1 = newest, the default) or ID
 `
 
@@ -41,6 +42,8 @@ func main() {
 		err = list(os.Stdout)
 	case "undo":
 		err = undo(arg(2), os.Stdout)
+	case "diff":
+		err = diff(arg(2), os.Stdout)
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -180,6 +183,25 @@ func undo(ref string, out io.Writer) error {
 	}
 	if backup.ID != "" {
 		fmt.Fprintf(out, "previous state saved as %s (airbag undo %s to go back)\n", backup.ID, backup.ID)
+	}
+	return nil
+}
+
+func diff(ref string, out io.Writer) error {
+	s, err := find(ref)
+	if err != nil {
+		return err
+	}
+	lines, err := changes(s)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "%s  %s\n", s.ID, s.Cmd)
+	if len(lines) == 0 {
+		fmt.Fprintln(out, "no changes")
+	}
+	for _, l := range lines {
+		fmt.Fprintln(out, l)
 	}
 	return nil
 }

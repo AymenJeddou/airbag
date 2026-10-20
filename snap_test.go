@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 )
@@ -128,5 +129,28 @@ func TestCursorFailsOpen(t *testing.T) {
 	}
 	if !bytes.Contains(out.Bytes(), []byte(`"allow"`)) {
 		t.Errorf("cursor must still get allow, got %q", out.String())
+	}
+}
+
+func TestChanges(t *testing.T) {
+	t.Setenv("AIRBAG_HOME", t.TempDir())
+	dir := t.TempDir()
+	mk(t, filepath.Join(dir, "gone"))
+	mk(t, filepath.Join(dir, "edited"))
+	mk(t, filepath.Join(dir, "same"))
+	s, err := takeSnap(Snap{Cmd: "test"}, []string{dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(dir, "gone"))
+	os.WriteFile(filepath.Join(dir, "edited"), []byte("new"), 0o644)
+	mk(t, filepath.Join(dir, "new"))
+	got, err := changes(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"modified " + filepath.Join(dir, "edited"), "deleted  " + filepath.Join(dir, "gone"), "added    " + filepath.Join(dir, "new")}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q\nwant %q", got, want)
 	}
 }
