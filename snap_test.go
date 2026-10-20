@@ -176,3 +176,13 @@ func TestUndoScopedToFolder(t *testing.T) {
 		}
 	}
 }
+
+func TestDisplay(t *testing.T) {
+	cwd, _ := os.Getwd()
+	if got := display(filepath.Join(cwd, "src", "a.go")); got != filepath.Join("src", "a.go") {
+		t.Errorf("got %q, want a relative path", got)
+	}
+	if outside := filepath.Dir(cwd); display(outside) != outside {
+		t.Errorf("paths outside the current folder stay absolute")
+	}
+}

@@ -209,7 +209,7 @@ func undo(ref, dir string, out io.Writer) error {
 		return err
 	}
 	for _, it := range s.Items {
-		fmt.Fprintln(out, "restored", it.Path)
+		fmt.Fprintln(out, "restored", display(it.Path))
 	}
 	if backup.ID != "" {
 		fmt.Fprintf(out, "previous state saved as %s (airbag undo %s to go back)\n", backup.ID, backup.ID)
@@ -231,7 +231,17 @@ func diff(ref, dir string, out io.Writer) error {
 		fmt.Fprintln(out, "no changes")
 	}
 	for _, l := range lines {
-		fmt.Fprintln(out, l)
+		fmt.Fprintln(out, l[:9]+display(l[9:])) // "modified " + path
 	}
 	return nil
+}
+
+// display shortens paths under the current folder to relative ones.
+func display(p string) string {
+	if cwd, err := os.Getwd(); err == nil && within(p, cwd) {
+		if rel, err := filepath.Rel(cwd, p); err == nil && rel != "." {
+			return rel
+		}
+	}
+	return p
 }
