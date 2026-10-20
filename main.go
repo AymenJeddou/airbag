@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// version is set by the release build.
+var version = "dev"
+
 const usage = `airbag: undo for AI coding agents
 
   airbag install [AGENT...]    add the hook to claude, codex, cursor (default: those installed)
@@ -21,6 +24,7 @@ const usage = `airbag: undo for AI coding agents
   airbag undo [N|ID]           restore snapshot N or ID
   airbag snap PATH...          snapshot paths by hand
   airbag hook AGENT            the hook itself (reads the agent's JSON on stdin)
+  airbag version
 `
 
 func main() {
@@ -50,6 +54,8 @@ func main() {
 		err = install(os.Args[2:], os.Stdout)
 	case "uninstall":
 		err = uninstall(os.Args[2:], os.Stdout)
+	case "version", "--version", "-v":
+		fmt.Println("airbag", version)
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
