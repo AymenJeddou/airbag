@@ -19,9 +19,9 @@ const usage = `airbag: undo for AI coding agents
 
   airbag install [AGENT...]    add the hook to claude, codex, cursor (default: those installed)
   airbag uninstall [AGENT...]  remove it again
-  airbag list                  recent snapshots
-  airbag diff [N|ID]           what changed since snapshot N (1 = newest, the default) or ID
-  airbag undo [N|ID]           restore snapshot N or ID
+  airbag list [--all]          recent snapshots for this folder (--all: every folder)
+  airbag diff [--all] [N|ID]   what changed since snapshot N (1 = newest, the default) or ID
+  airbag undo [--all] [N|ID]   restore snapshot N or ID
   airbag snap PATH...          snapshot paths by hand
   airbag hook AGENT            the hook itself (reads the agent's JSON on stdin)
   airbag version
@@ -45,11 +45,12 @@ func main() {
 	case "snap":
 		err = snapCmd(os.Args[2:], os.Stdout)
 	case "list":
-		err = list(os.Stdout)
+		_, dir, out := scope(os.Args[2:])
+		err = list(dir, out)
 	case "undo":
-		err = undo(arg(2), os.Stdout)
+		err = undo(scope(os.Args[2:]))
 	case "diff":
-		err = diff(arg(2), os.Stdout)
+		err = diff(scope(os.Args[2:]))
 	case "install":
 		err = install(os.Args[2:], os.Stdout)
 	case "uninstall":
@@ -163,12 +164,29 @@ func snapCmd(args []string, out io.Writer) error {
 	return nil
 }
 
-func list(out io.Writer) error {
+// scope reads [--all] [N|ID]. Without --all, commands only see snapshots for the current folder,
+// so undo in one project never restores another's files.
+func scope(args []string) (ref, dir string, out io.Writer) {
+	dir, _ = os.Getwd()
+	for _, a := range args {
+		if a == "--all" || a == "-a" {
+			dir = ""
+		} else if ref == "" {
+			ref = a
+		}
+	}
+	return ref, dir, os.Stdout
+}
+
+func list(dir string, out io.Writer) error {
 	all, err := snaps()
 	if err != nil {
 		return err
 	}
-	if len(all) == 0 {
+	all = forDir(all, dir)
+	if len(all) == 0 && dir != "" {
+		fmt.Fprintf(out, "no snapshots for %s (airbag list --all shows every folder)\n", dir)
+	} else if len(all) == 0 {
 		fmt.Fprintln(out, "no snapshots yet")
 	}
 	for i, s := range all {
@@ -181,8 +199,8 @@ func list(out io.Writer) error {
 	return nil
 }
 
-func undo(ref string, out io.Writer) error {
-	s, err := find(ref)
+func undo(ref, dir string, out io.Writer) error {
+	s, err := find(ref, dir)
 	if err != nil {
 		return err
 	}
@@ -199,8 +217,8 @@ func undo(ref string, out io.Writer) error {
 	return nil
 }
 
-func diff(ref string, out io.Writer) error {
-	s, err := find(ref)
+func diff(ref, dir string, out io.Writer) error {
+	s, err := find(ref, dir)
 	if err != nil {
 		return err
 	}

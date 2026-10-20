@@ -32,7 +32,7 @@ func TestHookThenUndo(t *testing.T) {
 	os.Remove(filepath.Join(proj, ".env"))
 	mk(t, filepath.Join(proj, "src/new.go"))
 
-	if err := undo("", &bytes.Buffer{}); err != nil {
+	if err := undo("", proj, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []string{"src/main.go", "src/deep/x.txt", ".env"} {
@@ -47,7 +47,7 @@ func TestHookThenUndo(t *testing.T) {
 	}
 
 	// undo is undoable: the newest snapshot is now the pre-undo state
-	if err := undo("", &bytes.Buffer{}); err != nil {
+	if err := undo("", proj, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(proj, "src/new.go")); err != nil {
@@ -152,5 +152,27 @@ func TestChanges(t *testing.T) {
 	want := []string{"modified " + filepath.Join(dir, "edited"), "deleted  " + filepath.Join(dir, "gone"), "added    " + filepath.Join(dir, "new")}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
+// undo in one project must never restore another project's snapshot, even a newer one.
+func TestUndoScopedToFolder(t *testing.T) {
+	t.Setenv("AIRBAG_HOME", t.TempDir())
+	a, b := t.TempDir(), t.TempDir()
+	mk(t, filepath.Join(a, "keep"))
+	mk(t, filepath.Join(b, "other"))
+	sa, _ := takeSnap(Snap{Cmd: "rm keep"}, []string{filepath.Join(a, "keep")})
+	takeSnap(Snap{Cmd: "rm other"}, []string{filepath.Join(b, "other")}) // newer
+	for dir, want := range map[string]string{a: sa.ID, "": ""} {
+		s, err := find("1", dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want != "" && s.ID != want {
+			t.Errorf("find in %s picked %s (%s), want %s", dir, s.ID, s.Cmd, want)
+		}
+		if want == "" && s.Cmd != "rm other" {
+			t.Errorf("--all should pick the newest overall, got %s", s.Cmd)
+		}
 	}
 }

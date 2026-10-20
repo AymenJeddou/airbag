@@ -188,8 +188,8 @@ func snaps() ([]Snap, error) {
 	return out, nil
 }
 
-// find resolves "", "N" (Nth newest, 1-based) or an ID prefix.
-func find(ref string) (Snap, error) {
+// find resolves "", "N" (Nth newest, 1-based) or an ID prefix among the snapshots for dir ("" = all).
+func find(ref, dir string) (Snap, error) {
 	all, err := snaps()
 	if err != nil {
 		return Snap{}, err
@@ -197,15 +197,34 @@ func find(ref string) (Snap, error) {
 	if ref == "" {
 		ref = "1"
 	}
-	if n, err := strconv.Atoi(ref); err == nil && n >= 1 && n <= len(all) && len(ref) < 4 {
-		return all[n-1], nil
+	if n, err := strconv.Atoi(ref); err == nil && len(ref) < 4 {
+		if mine := forDir(all, dir); n >= 1 && n <= len(mine) {
+			return mine[n-1], nil
+		}
 	}
-	for _, s := range all {
+	for _, s := range all { // an explicit ID works from anywhere
 		if strings.HasPrefix(s.ID, ref) {
 			return s, nil
 		}
 	}
+	if dir != "" {
+		return Snap{}, fmt.Errorf("no snapshot %q for %s (see `airbag list --all`)", ref, dir)
+	}
 	return Snap{}, fmt.Errorf("no snapshot %q (see `airbag list`)", ref)
+}
+
+// forDir keeps snapshots that touch dir: something inside it, or a folder it lives in. "" keeps all.
+func forDir(all []Snap, dir string) []Snap {
+	if dir == "" {
+		return all
+	}
+	var out []Snap
+	for _, s := range all {
+		if slices.ContainsFunc(s.Items, func(it Item) bool { return within(it.Path, dir) || within(dir, it.Path) }) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // restore puts every item of s back, after snapshotting the current state so undo is undoable.
