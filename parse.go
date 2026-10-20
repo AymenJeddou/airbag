@@ -183,7 +183,9 @@ func (a *analyzer) argv(args []string) {
 			a.opaque()
 		}
 	case "find":
-		if slices.ContainsFunc(rest, func(s string) bool { return s == "-delete" || strings.HasPrefix(s, "-exec") || strings.HasPrefix(s, "-ok") }) {
+		if slices.ContainsFunc(rest, func(s string) bool {
+			return s == "-delete" || strings.HasPrefix(s, "-exec") || strings.HasPrefix(s, "-ok")
+		}) {
 			i := slices.IndexFunc(rest, func(s string) bool { return strings.HasPrefix(s, "-") || s == "(" || s == "!" })
 			if i == -1 {
 				i = len(rest)
