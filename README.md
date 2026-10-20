@@ -6,16 +6,7 @@
 
 Undo for AI coding agents. Git can't save what git ignores; airbag can.
 
-```console
-$ claude -p "Run exactly this shell command and nothing else: rm -rf src .env"
-I ran `rm -rf src .env` in the project directory and it finished without errors, so `src/` and
-`.env` are now deleted. [...] The folder isn't a git repository, so there's no history to
-restore them from.
-
-$ airbag undo
-restored ~/proj/.env
-restored ~/proj/src
-```
+![Claude Code deletes src and .env, then airbag undo brings them back](demo/demo.gif)
 
 Before each shell command your agent runs, airbag snapshots exactly what that command is about to destroy, gitignored files included: `.env`, local databases, uploads, build inputs. When something goes wrong, `airbag undo` puts it back.
 
