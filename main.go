@@ -14,7 +14,7 @@ import (
 
 const usage = `airbag: undo for AI coding agents
 
-  airbag hook claude      PreToolUse hook for Claude Code (reads hook JSON on stdin)
+  airbag hook AGENT       pre-command hook for claude or codex (reads hook JSON on stdin)
   airbag snap PATH...     snapshot paths by hand
   airbag list             recent snapshots
   airbag undo [N|ID]      restore snapshot N (1 = newest, the default) or ID
@@ -51,8 +51,8 @@ func main() {
 	}
 }
 
-// claudeInput is the subset of Claude Code's PreToolUse payload we use.
-type claudeInput struct {
+// hookInput is the subset of the PreToolUse payload we use. Claude Code and Codex share this shape.
+type hookInput struct {
 	Cwd       string `json:"cwd"`
 	ToolName  string `json:"tool_name"`
 	ToolInput struct {
@@ -61,31 +61,45 @@ type claudeInput struct {
 }
 
 func hook(agent string, in io.Reader, out io.Writer) error {
-	if agent != "claude" {
-		return fmt.Errorf("unknown agent %q (supported: claude)", agent)
+	if agent != "claude" && agent != "codex" {
+		return fmt.Errorf("unknown agent %q (supported: claude, codex)", agent)
 	}
-	var h claudeInput
+	var h hookInput
 	if err := json.NewDecoder(in).Decode(&h); err != nil {
 		return err
 	}
 	if h.ToolName != "Bash" || h.ToolInput.Command == "" {
 		return nil
 	}
-	plan := Analyze(h.ToolInput.Command, h.Cwd, os.Environ())
+	tooBig, err := protect(agent, h.ToolInput.Command, h.Cwd)
+	if tooBig == "" {
+		return err
+	}
+	// We stay out of the permission flow unless we can't protect an explicit target.
+	// Codex parses "ask" but doesn't support it yet, so it gets a deny the agent can explain.
+	decision := "ask"
+	if agent == "codex" {
+		decision = "deny"
+	}
+	return json.NewEncoder(out).Encode(map[string]any{"hookSpecificOutput": map[string]string{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       decision,
+		"permissionDecisionReason": tooBig,
+	}})
+}
+
+// protect snapshots what cmd puts at risk. It returns a reason when an explicit target is too big to snapshot.
+func protect(agent, cmd, cwd string) (tooBig string, err error) {
+	plan := Analyze(cmd, cwd, os.Environ())
 	paths := plan.all()
 	if len(paths) == 0 {
-		return nil
+		return "", nil
 	}
-	_, err := takeSnap(Snap{Cmd: h.ToolInput.Command, Cwd: h.Cwd, Agent: agent}, paths)
+	_, err = takeSnap(Snap{Cmd: cmd, Cwd: cwd, Agent: agent}, paths)
 	if errors.Is(err, errTooBig) && len(plan.Paths) > 0 {
-		// We stay out of the permission flow unless we can't protect an explicit target.
-		return json.NewEncoder(out).Encode(map[string]any{"hookSpecificOutput": map[string]string{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "ask",
-			"permissionDecisionReason": "airbag can't snapshot " + strings.Join(plan.Paths, ", ") + " (too big), so this can't be undone",
-		}})
+		return "airbag can't snapshot " + strings.Join(plan.Paths, ", ") + " (too big), so this can't be undone", nil
 	}
-	return err
+	return "", err
 }
 
 func snapCmd(args []string, out io.Writer) error {

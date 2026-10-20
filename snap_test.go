@@ -63,3 +63,23 @@ func TestHookIgnoresSafeCommands(t *testing.T) {
 		t.Errorf("got %d snapshots, want 0", len(all))
 	}
 }
+
+// When a target is too big to snapshot, Claude asks the user and Codex (no "ask" support) denies.
+func TestHookTooBig(t *testing.T) {
+	t.Setenv("AIRBAG_HOME", t.TempDir())
+	defer func(n int) { maxFiles = n }(maxFiles)
+	maxFiles = 1
+	proj := t.TempDir()
+	mk(t, filepath.Join(proj, "data/a"))
+	mk(t, filepath.Join(proj, "data/b"))
+	in, _ := json.Marshal(map[string]any{"cwd": proj, "tool_name": "Bash", "tool_input": map[string]string{"command": "rm -rf data"}})
+	for agent, want := range map[string]string{"claude": `"ask"`, "codex": `"deny"`} {
+		var out bytes.Buffer
+		if err := hook(agent, bytes.NewReader(in), &out); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(out.Bytes(), []byte(want)) {
+			t.Errorf("%s: got %s, want decision %s", agent, out.String(), want)
+		}
+	}
+}

@@ -15,9 +15,9 @@ import (
 )
 
 // ponytail: fixed limits, make them config when someone hits them
-const (
-	maxFiles = 200_000
-	maxBytes = 1 << 30 // only enforced where copies aren't copy-on-write
+var (
+	maxFiles       = 200_000
+	maxBytes int64 = 1 << 30 // only enforced where copies aren't copy-on-write
 )
 
 var errTooBig = errors.New("too big to snapshot")
