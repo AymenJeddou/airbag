@@ -114,6 +114,7 @@ func protect(agent, cmd, cwd string) (tooBig string, err error) {
 		return "", nil
 	}
 	_, err = takeSnap(Snap{Cmd: cmd, Cwd: cwd, Agent: agent}, paths)
+	prune(time.Now())
 	if errors.Is(err, errTooBig) && len(plan.Paths) > 0 {
 		return "airbag can't snapshot " + strings.Join(plan.Paths, ", ") + " (too big), so this can't be undone", nil
 	}

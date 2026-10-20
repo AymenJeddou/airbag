@@ -46,13 +46,28 @@ func storeDir() string {
 
 func snapDir(id string) string { return filepath.Join(storeDir(), "snaps", id) }
 
+const idLayout = "20060102-150405.000000"
+
+// keepFor is how long snapshots live. ponytail: age only, add a size cap if stores grow too big
+const keepFor = 7 * 24 * time.Hour
+
+// prune deletes expired snapshots. IDs are UTC timestamps, so no manifest reads are needed.
+func prune(now time.Time) {
+	entries, _ := os.ReadDir(filepath.Join(storeDir(), "snaps"))
+	for _, e := range entries {
+		if t, err := time.Parse(idLayout, e.Name()); err == nil && now.Sub(t) > keepFor {
+			os.RemoveAll(snapDir(e.Name()))
+		}
+	}
+}
+
 // takeSnap copies paths into a new snapshot described by meta.
 func takeSnap(meta Snap, paths []string) (Snap, error) {
 	if err := checkBudget(paths); err != nil {
 		return meta, err
 	}
 	meta.Time = time.Now()
-	meta.ID = meta.Time.UTC().Format("20060102-150405.000000")
+	meta.ID = meta.Time.UTC().Format(idLayout)
 	dir := snapDir(meta.ID)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return meta, err

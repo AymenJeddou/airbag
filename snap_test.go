@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // The whole point: agent runs rm -rf, `airbag undo` brings it back byte for byte.
@@ -99,5 +100,23 @@ func TestCursorHook(t *testing.T) {
 	}
 	if all, _ := snaps(); len(all) != 1 || all[0].Agent != "cursor" {
 		t.Errorf("want one cursor snapshot, got %+v", all)
+	}
+}
+
+func TestPrune(t *testing.T) {
+	t.Setenv("AIRBAG_HOME", t.TempDir())
+	f := filepath.Join(t.TempDir(), "f")
+	mk(t, f)
+	s, err := takeSnap(Snap{Cmd: "test"}, []string{f})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prune(s.Time.Add(keepFor - time.Minute))
+	if all, _ := snaps(); len(all) != 1 {
+		t.Fatalf("fresh snapshot pruned")
+	}
+	prune(s.Time.Add(keepFor + time.Minute))
+	if all, _ := snaps(); len(all) != 0 {
+		t.Fatalf("expired snapshot kept")
 	}
 }
