@@ -64,7 +64,7 @@ func TestHookIgnoresSafeCommands(t *testing.T) {
 	}
 }
 
-// When a target is too big to snapshot, Claude asks the user and Codex (no "ask" support) denies.
+// When a target is too big to snapshot, Claude and Cursor ask the user; Codex (no "ask" support) denies.
 func TestHookTooBig(t *testing.T) {
 	t.Setenv("AIRBAG_HOME", t.TempDir())
 	defer func(n int) { maxFiles = n }(maxFiles)
@@ -72,8 +72,9 @@ func TestHookTooBig(t *testing.T) {
 	proj := t.TempDir()
 	mk(t, filepath.Join(proj, "data/a"))
 	mk(t, filepath.Join(proj, "data/b"))
-	in, _ := json.Marshal(map[string]any{"cwd": proj, "tool_name": "Bash", "tool_input": map[string]string{"command": "rm -rf data"}})
-	for agent, want := range map[string]string{"claude": `"ask"`, "codex": `"deny"`} {
+	in, _ := json.Marshal(map[string]any{"cwd": proj, "command": "rm -rf data", // Cursor's shape
+		"tool_name": "Bash", "tool_input": map[string]string{"command": "rm -rf data"}}) // Claude/Codex shape
+	for agent, want := range map[string]string{"claude": `"ask"`, "codex": `"deny"`, "cursor": `"ask"`} {
 		var out bytes.Buffer
 		if err := hook(agent, bytes.NewReader(in), &out); err != nil {
 			t.Fatal(err)
@@ -81,5 +82,22 @@ func TestHookTooBig(t *testing.T) {
 		if !bytes.Contains(out.Bytes(), []byte(want)) {
 			t.Errorf("%s: got %s, want decision %s", agent, out.String(), want)
 		}
+	}
+}
+
+func TestCursorHook(t *testing.T) {
+	t.Setenv("AIRBAG_HOME", t.TempDir())
+	proj := t.TempDir()
+	mk(t, filepath.Join(proj, "notes.md"))
+	in, _ := json.Marshal(map[string]string{"cwd": proj, "command": "rm notes.md"})
+	var out bytes.Buffer
+	if err := hook("cursor", bytes.NewReader(in), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(out.Bytes(), []byte(`"allow"`)) {
+		t.Errorf("cursor needs an explicit allow, got %q", out.String())
+	}
+	if all, _ := snaps(); len(all) != 1 || all[0].Agent != "cursor" {
+		t.Errorf("want one cursor snapshot, got %+v", all)
 	}
 }

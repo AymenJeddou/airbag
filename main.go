@@ -14,7 +14,7 @@ import (
 
 const usage = `airbag: undo for AI coding agents
 
-  airbag hook AGENT       pre-command hook for claude or codex (reads hook JSON on stdin)
+  airbag hook AGENT       pre-command hook for claude, codex or cursor (reads hook JSON on stdin)
   airbag snap PATH...     snapshot paths by hand
   airbag list             recent snapshots
   airbag undo [N|ID]      restore snapshot N (1 = newest, the default) or ID
@@ -51,9 +51,11 @@ func main() {
 	}
 }
 
-// hookInput is the subset of the PreToolUse payload we use. Claude Code and Codex share this shape.
+// hookInput is the subset of the hook payloads we use. Claude Code and Codex send
+// tool_name + tool_input; Cursor's beforeShellExecution sends command at the top level.
 type hookInput struct {
 	Cwd       string `json:"cwd"`
+	Command   string `json:"command"`
 	ToolName  string `json:"tool_name"`
 	ToolInput struct {
 		Command string `json:"command"`
@@ -61,12 +63,15 @@ type hookInput struct {
 }
 
 func hook(agent string, in io.Reader, out io.Writer) error {
-	if agent != "claude" && agent != "codex" {
-		return fmt.Errorf("unknown agent %q (supported: claude, codex)", agent)
+	if agent != "claude" && agent != "codex" && agent != "cursor" {
+		return fmt.Errorf("unknown agent %q (supported: claude, codex, cursor)", agent)
 	}
 	var h hookInput
 	if err := json.NewDecoder(in).Decode(&h); err != nil {
 		return err
+	}
+	if agent == "cursor" {
+		return cursorHook(h, out)
 	}
 	if h.ToolName != "Bash" || h.ToolInput.Command == "" {
 		return nil
@@ -86,6 +91,19 @@ func hook(agent string, in io.Reader, out io.Writer) error {
 		"permissionDecision":       decision,
 		"permissionDecisionReason": tooBig,
 	}})
+}
+
+// cursorHook always answers, because Cursor treats empty or invalid output as a block.
+func cursorHook(h hookInput, out io.Writer) error {
+	resp := map[string]string{"permission": "allow"}
+	tooBig, err := protect("cursor", h.Command, h.Cwd)
+	if tooBig != "" {
+		resp = map[string]string{"permission": "ask", "user_message": tooBig, "agent_message": tooBig}
+	}
+	if encErr := json.NewEncoder(out).Encode(resp); encErr != nil {
+		return encErr
+	}
+	return err
 }
 
 // protect snapshots what cmd puts at risk. It returns a reason when an explicit target is too big to snapshot.
