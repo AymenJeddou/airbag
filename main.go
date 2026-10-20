@@ -14,11 +14,13 @@ import (
 
 const usage = `airbag: undo for AI coding agents
 
-  airbag hook AGENT       pre-command hook for claude, codex or cursor (reads hook JSON on stdin)
-  airbag snap PATH...     snapshot paths by hand
-  airbag list             recent snapshots
-  airbag diff [N|ID]      what changed since snapshot N or ID
-  airbag undo [N|ID]      restore snapshot N (1 = newest, the default) or ID
+  airbag install [AGENT...]    add the hook to claude, codex, cursor (default: those installed)
+  airbag uninstall [AGENT...]  remove it again
+  airbag list                  recent snapshots
+  airbag diff [N|ID]           what changed since snapshot N (1 = newest, the default) or ID
+  airbag undo [N|ID]           restore snapshot N or ID
+  airbag snap PATH...          snapshot paths by hand
+  airbag hook AGENT            the hook itself (reads the agent's JSON on stdin)
 `
 
 func main() {
@@ -44,6 +46,10 @@ func main() {
 		err = undo(arg(2), os.Stdout)
 	case "diff":
 		err = diff(arg(2), os.Stdout)
+	case "install":
+		err = install(os.Args[2:], os.Stdout)
+	case "uninstall":
+		err = uninstall(os.Args[2:], os.Stdout)
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
