@@ -46,7 +46,7 @@ $ airbag undo        # put it back; run it again to redo
 $ airbag undo 3      # or pick an older snapshot
 ```
 
-Snapshots live in `~/.airbag` and expire after 7 days.
+`list`, `diff` and `undo` only see snapshots for the folder you run them in, so undoing in one project never touches another. Add `--all` to see every folder. Snapshots live in `~/.airbag` and expire after 7 days.
 
 ## How it works
 
