@@ -1,6 +1,7 @@
 # Records demo/demo.gif with https://github.com/charmbracelet/vhs against a real Claude Code session.
 # Needs: airbag on PATH, `airbag install claude` done, and claude logged in.
 # Run from the repo root: vhs demo/demo.tape
+# AIRBAG_DEMO_DIR picks where the throwaway folder goes (default /tmp), e.g. to keep your username out of paths.
 Output demo/demo.gif
 Set FontSize 18
 Set Width 1200
@@ -11,7 +12,7 @@ Set Shell "bash"
 
 Hide
 Sleep 2s
-Type "cd $(mktemp -d) && mkdir src && echo 'API_KEY=sk-live-do-not-lose' > .env && echo 'package main' > src/main.go && clear" Enter
+Type "mkdir -p ${AIRBAG_DEMO_DIR:-/tmp} && cd $(mktemp -d -p ${AIRBAG_DEMO_DIR:-/tmp}) && mkdir src && echo 'API_KEY=sk-live-do-not-lose' > .env && echo 'package main' > src/main.go && clear" Enter
 Sleep 1s
 Show
 
