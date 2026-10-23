@@ -45,6 +45,8 @@ func TestAnalyze(t *testing.T) {
 		{cmd: "git status"},
 		{cmd: "git restore --staged a.txt"},
 		{cmd: "git clean -fdx", paths: []string{"."}},
+		{cmd: "git clean -n -d"},
+		{cmd: "git clean --dry-run"},
 		{cmd: "git reset --hard HEAD~1", paths: []string{"."}},
 		{cmd: "git checkout -- a.txt", paths: []string{"."}},
 		{cmd: "cd src && git checkout .", paths: []string{"."}},

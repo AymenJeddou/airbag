@@ -232,7 +232,9 @@ func (a *analyzer) git(args []string) {
 	}
 	destructive := false
 	switch sub {
-	case "clean", "rm":
+	case "clean":
+		destructive = !has("-n", "--dry-run")
+	case "rm":
 		destructive = true
 	case "reset":
 		destructive = has("--hard", "--merge", "--keep")
