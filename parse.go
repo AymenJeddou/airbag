@@ -177,7 +177,7 @@ func (a *analyzer) argv(args []string) {
 			}
 		}
 	case "sed", "perl":
-		if slices.ContainsFunc(rest, func(s string) bool { return strings.HasPrefix(s, "-i") || s == "--in-place" }) {
+		if slices.ContainsFunc(rest, func(s string) bool { return inPlace.MatchString(s) || s == "--in-place" }) {
 			a.add(operands(rest)...) // the script arg won't exist as a path, so it drops out
 		} else if name == "perl" {
 			a.opaque()
@@ -274,6 +274,9 @@ func (a *analyzer) add(paths ...string) {
 		}
 	}
 }
+
+// -i, -i.bak, and perl's bundled -pi / -i -pe forms.
+var inPlace = regexp.MustCompile(`^-[a-zA-Z]*i`)
 
 var msysDrive = regexp.MustCompile(`^/([a-zA-Z])(/|$)`)
 
