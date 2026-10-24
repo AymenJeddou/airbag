@@ -41,6 +41,7 @@ var wrappers = map[string]bool{"sudo": true, "doas": true, "env": true, "command
 type analyzer struct {
 	env  map[string]string
 	dir  string
+	dirs []string // pushd stack
 	plan Plan
 }
 
@@ -158,11 +159,18 @@ func (a *analyzer) argv(args []string) {
 	}
 	name, rest := filepath.Base(args[0]), args[1:]
 	switch name {
-	case "cd":
-		if len(rest) == 0 {
+	case "cd", "pushd":
+		if name == "pushd" {
+			a.dirs = append(a.dirs, a.dir)
+		}
+		if ops := operands(rest); len(ops) == 0 {
 			a.dir = a.env["HOME"]
 		} else {
-			a.dir = a.abs(rest[0])
+			a.dir = a.abs(ops[0])
+		}
+	case "popd":
+		if n := len(a.dirs); n > 0 {
+			a.dir, a.dirs = a.dirs[n-1], a.dirs[:n-1]
 		}
 	case "rm", "rmdir", "unlink", "shred", "truncate", "mv", "chmod", "chown", "chgrp", "tee":
 		a.add(operands(rest)...)
