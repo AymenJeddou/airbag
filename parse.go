@@ -239,7 +239,14 @@ func (a *analyzer) git(args []string) {
 	case "reset":
 		destructive = has("--hard", "--merge", "--keep")
 	case "checkout":
-		destructive = has("--", ".", "-f", "--force")
+		// "git checkout a.txt" discards a.txt's changes just like "git checkout -- a.txt"
+		destructive = has("--", ".", "-f", "--force") || slices.ContainsFunc(operands(rest), func(s string) bool {
+			if !filepath.IsAbs(s) {
+				s = filepath.Join(dir, s)
+			}
+			_, err := os.Lstat(s)
+			return err == nil
+		})
 	case "restore":
 		destructive = !has("--staged", "-S") || has("--worktree", "-W")
 	case "switch":
