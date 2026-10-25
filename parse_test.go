@@ -10,7 +10,7 @@ import (
 func TestAnalyze(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	for _, p := range []string{".git/HEAD", "a.txt", "b.txt", ".env", "src/main.go", "build/out", "clean.py"} {
+	for _, p := range []string{".git/HEAD", "target/debug/app", "wt/x", "a.txt", "b.txt", ".env", "src/main.go", "build/out", "clean.py"} {
 		mk(t, filepath.Join(root, p))
 	}
 	mk(t, filepath.Join(home, "x/notes"))
@@ -66,6 +66,12 @@ func TestAnalyze(t *testing.T) {
 		{cmd: "make clean", root: true},
 		{cmd: "npm run clean", root: true},
 		{cmd: "npm install"},
+		{cmd: "cargo clean", paths: []string{"target"}},
+		{cmd: "cd src && cargo clean", paths: []string{"target"}},
+		{cmd: "cargo clean --target-dir=build", paths: []string{"build"}},
+		{cmd: "cargo build"},
+		{cmd: "git worktree remove --force wt", paths: []string{"wt"}},
+		{cmd: "git worktree list"},
 		{cmd: "tar xzf deps.tgz", root: true},
 		{cmd: "tar -C src -xf deps.tar", root: true},
 		{cmd: "tar --extract -f deps.tar", root: true},

@@ -211,6 +211,19 @@ func (a *analyzer) argv(args []string) {
 		if slices.ContainsFunc(rest, extract) || len(rest) > 0 && strings.Contains(rest[0], "x") { // "tar xzf"
 			a.opaque()
 		}
+	case "cargo":
+		// target/ is gitignored, so git can't bring a cleaned build back
+		if len(rest) > 0 && rest[0] == "clean" {
+			target := "target"
+			for i, f := range rest {
+				if v, ok := strings.CutPrefix(f, "--target-dir="); ok {
+					target = v
+				} else if f == "--target-dir" && i+1 < len(rest) {
+					target = rest[i+1]
+				}
+			}
+			a.add(filepath.Join(projectRoot(a.dir), target))
+		}
 	case "unzip", "7z":
 		if !slices.ContainsFunc(rest, func(s string) bool { return s == "-l" || s == "l" || s == "-v" }) {
 			a.opaque()
@@ -269,6 +282,15 @@ func (a *analyzer) git(args []string) {
 		})
 	case "restore":
 		destructive = !has("--staged", "-S") || has("--worktree", "-W")
+	case "worktree":
+		if len(rest) > 1 && rest[0] == "remove" {
+			for _, p := range operands(rest[1:]) {
+				if !filepath.IsAbs(p) {
+					p = filepath.Join(dir, p)
+				}
+				a.add(p)
+			}
+		}
 	case "switch":
 		destructive = has("-f", "--force", "--discard-changes")
 	}
