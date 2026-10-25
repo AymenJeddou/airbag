@@ -66,6 +66,13 @@ func TestAnalyze(t *testing.T) {
 		{cmd: "make clean", root: true},
 		{cmd: "npm run clean", root: true},
 		{cmd: "npm install"},
+		{cmd: "tar xzf deps.tgz", root: true},
+		{cmd: "tar -C src -xf deps.tar", root: true},
+		{cmd: "tar --extract -f deps.tar", root: true},
+		{cmd: "tar czf out.tgz src"},
+		{cmd: "tar -tvf deps.tar"},
+		{cmd: "unzip -o site.zip", root: true},
+		{cmd: "unzip -l site.zip"},
 		{cmd: "echo $(rm -rf src)", paths: []string{"src"}, root: true},
 		{cmd: "if [ -d build ; then", root: true}, // unparseable
 	}

@@ -203,6 +203,18 @@ func (a *analyzer) argv(args []string) {
 			}
 			a.add(rest[:i]...)
 		}
+	case "tar":
+		// extracting overwrites whatever the archive holds, which we can't list without reading it
+		extract := func(s string) bool {
+			return s == "--extract" || s == "--get" || strings.HasPrefix(s, "-") && !strings.HasPrefix(s, "--") && strings.Contains(s, "x")
+		}
+		if slices.ContainsFunc(rest, extract) || len(rest) > 0 && strings.Contains(rest[0], "x") { // "tar xzf"
+			a.opaque()
+		}
+	case "unzip", "7z":
+		if !slices.ContainsFunc(rest, func(s string) bool { return s == "-l" || s == "l" || s == "-v" }) {
+			a.opaque()
+		}
 	case "git":
 		a.git(rest)
 	case "bash", "sh", "zsh":
